@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for neon glow and glassmorphism */
+:root{
+  --glass: rgba(255,255,255,0.06);
+}
+
+body{font-family: Sora, Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
+
+.glass{background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.06)}
+
+/* typing animation */
+@keyframes typing { from { width: 0 } to { width: 100% } }
+.animate-typing{ display:inline-block; overflow:hidden; white-space:nowrap; border-right:2px solid rgba(0,0,0,0.1); animation: typing 3s steps(30,end), blink .7s infinite;}
+@keyframes blink{ 50%{border-color:transparent} }
+
+/* neon glow */
+.btn-glow{box-shadow: 0 6px 20px rgba(99,102,241,0.18)}
+.btn-glow:hover{box-shadow: 0 10px 30px rgba(124,58,237,0.28), 0 0 40px rgba(79,70,229,0.12)}
+
+/* small responsive tweaks */
+@media (min-width:768px){
+  .container{padding-left: 2rem; padding-right:2rem}
+}
+
+/* Design system additions */
+.online-dot{width:10px;height:10px;border-radius:9999px;background:var(--online-green);box-shadow:0 0 0 0 rgba(16,185,129,0.4);}
+.online-dot.pulse::after{content:'';position:absolute;width:10px;height:10px;border-radius:9999px;box-shadow:0 0 0 6px rgba(16,185,129,0.12);animation:dot-pulse 2s infinite}
+@keyframes dot-pulse{0%{transform:scale(.9);opacity:1}70%{transform:scale(1.6);opacity:0}100%{transform:scale(1.6);opacity:0}}
+
+:root{--online-green:#10B981}
+
+/* Input focus & send button styles */
+.chat-input{border:1px solid #E2E8F0;background:#fff;padding:0.75rem 1.25rem;border-radius:1rem;transition:box-shadow .18s,transform .12s}
+.chat-input:focus{box-shadow:0 6px 20px rgba(79,70,229,0.08);outline:none;border-color:rgba(67,56,202,0.18)}
+.send-btn{background:linear-gradient(90deg,var(--primary-from,#4f46e5),var(--primary-to,#4338ca));color:white;border-radius:0.75rem;padding:.5rem 1.1rem}
+.send-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Feedback floating button glow every 10s */
+.feedback-btn{animation:feedback-glow 10s infinite}
+@keyframes feedback-glow{0%,88%{box-shadow:0 10px 30px rgba(79,70,229,0.06)}90%{box-shadow:0 14px 40px rgba(79,70,229,0.12)}95%{box-shadow:0 22px 60px rgba(124,58,237,0.14)}100%{box-shadow:0 10px 30px rgba(79,70,229,0.06)}}
+
+/* Chat bubble gradients */
+.bubble-user{background:linear-gradient(90deg,#4f46e5,#8B5CF6);color:white}
+.bubble-ai{background:#fff;color:#111;border:1px solid #EEF2FF}
+
+/* Small utilities */
+.rounded-chat{border-radius:1.5rem}
+.shadow-soft{box-shadow:0 4px 24px rgba(0,0,0,0.05)}
