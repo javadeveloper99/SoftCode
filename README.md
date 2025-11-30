@@ -43,7 +43,7 @@ npm install
 npm run dev
 ```
 
-Open the development server (usually http://localhost:5173) to view the app.
+Open the development server (usually http://localhost:3000) to view the app.
 
 ## Notes
 
