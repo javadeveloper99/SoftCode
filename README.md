@@ -45,16 +45,3 @@ npm run dev
 
 Open the development server (usually http://localhost:3000) to view the app.
 
-## Notes
-
-- This repository includes a `.gitignore` and `.gitattributes` to prepare the project for GitHub.
-- If you want the `ContactSection` removed entirely from the repository, tell me and I will delete that file.
-- I can replace the footer social placeholders with SVG icons (LinkedIn/GitHub/Twitter) if desired.
-
-## Next suggestions
-
-- Add a `LICENSE` (e.g., MIT) and a `CONTRIBUTING.md` for collaborators.
-- Add production build and deployment instructions if you plan to publish the project.
-- Wire up a backend or API for real chat responses.
-
-If you want any of those done now, tell me which one and I'll add it.
