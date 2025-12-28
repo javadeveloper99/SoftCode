@@ -4,11 +4,21 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SoftCode AI Chat Assistant</title>
+    <meta name="description" content="SoftCode — AI chat assistant for code review, architecture suggestions, and documentation generation." />
+    <meta property="og:title" content="SoftCode AI Chat Assistant" />
+    <meta property="og:description" content="Context-aware AI for reviewing code, suggesting architecture, and more." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   </head>
   <body class="antialiased bg-gradient-to-b from-white to-gray-100 text-gray-900">
+    <a href="#root" class="skip-link">Skip to content</a>
+    <style>
+      .skip-link{position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden}
+      .skip-link:focus{position:fixed;left:10px;top:10px;width:auto;height:auto;padding:8px;background:#111;color:#fff;z-index:1000;border-radius:4px}
+    </style>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -35,7 +35,7 @@ export default function SignIn(){
             <Link to="/signup" className="text-sm text-primary-from hover:underline">Create account</Link>
           </div>
           <div className="pt-2">
-            <button type="button" onClick={()=>{ login({ name: 'Guest' }, 'guest-token'); navigate('/chat') }} className="w-full text-left text-sm text-gray-600 hover:underline">I'll do it later</button>
+            <button type="button" onClick={()=>{ try{ sessionStorage.setItem('softcode_guest_notice_needed','1') }catch(e){}; login({ name: 'Guest' }, 'guest-token', { persist: false, guest: true }); navigate('/chat', { state: { showGuestNotice:true } }) }} className="w-full text-left text-sm text-gray-600 hover:underline">I'll do it later</button>
           </div>
         </form>
       </div>

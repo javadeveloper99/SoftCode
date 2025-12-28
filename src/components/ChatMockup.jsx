@@ -1,15 +1,22 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useUser } from '../context/UserContext'
 
 export default function ChatMockup(){
   const [text, setText] = useState('')
   const [messages, setMessages] = useState([])
   const navigate = useNavigate()
+  const { user, login } = useUser()
 
   function handleSend(){
     const trimmed = String(text || '').trim()
     if(!trimmed) return
+    // if no user, make a transient guest so sending doesn't trigger auth flow
+    if(!user){
+      try{ sessionStorage.setItem('softcode_guest_notice_needed','1') }catch(e){}
+      login({ name: 'Guest' }, 'guest-token', { persist: false, guest: true })
+    }
     // Add message locally to mockup instead of immediately navigating
     setMessages(prev => [...prev, { from: 'user', text: trimmed }])
     setText('')
@@ -19,7 +26,12 @@ export default function ChatMockup(){
   function openFullChat(){
     const initial = messages.length ? messages[messages.length - 1].text : text
     if(!initial) return navigate('/chat')
-    navigate('/chat', { state: { initialMessage: initial } })
+    // ensure guest mode if needed and signal chat page to show guest notice once
+    if(!user){
+      try{ sessionStorage.setItem('softcode_guest_notice_needed','1') }catch(e){}
+      login({ name: 'Guest' }, 'guest-token', { persist: false, guest: true })
+    }
+    navigate('/chat', { state: { initialMessage: initial, showGuestNotice: !user } })
   }
 
   return (
@@ -51,8 +63,8 @@ export default function ChatMockup(){
 
       <div className="mt-4">
         <div className="rounded-lg p-2 bg-white shadow-sm flex items-center gap-3">
-          <input value={text} onChange={e=>setText(e.target.value)} className="chat-input flex-1" placeholder="Type a message..." onKeyDown={e=>{ if(e.key === 'Enter') handleSend() }} />
-          <button onClick={handleSend} className="send-btn">Send</button>
+          <input value={text} onChange={e=>setText(e.target.value)} className="chat-input flex-1 py-3 text-base" placeholder="Type a message..." onKeyDown={e=>{ if(e.key === 'Enter') handleSend() }} />
+          <button onClick={handleSend} className="send-btn px-4 py-3 text-base">Send</button>
           <button onClick={openFullChat} className="ml-2 text-sm text-primary-from hover:underline">Open full chat</button>
         </div>
       </div>

@@ -9,6 +9,7 @@ import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 // ProfileMenu is not shown before sign-in; we keep the component in the repo for later use
 import { UserProvider, useUser } from './context/UserContext'
+import { ThemeProvider, useTheme } from './context/ThemeContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import GuestRoute from './components/GuestRoute'
 
@@ -70,6 +71,7 @@ export default function App(){
 
   return (
     <UserProvider>
+      <ThemeProvider>
       <BrowserRouter>
         <div className="min-h-screen">
           <Routes>
@@ -85,12 +87,14 @@ export default function App(){
           <FeedbackModal open={feedbackOpen} onClose={()=>setFeedbackOpen(false)} />
         </div>
       </BrowserRouter>
+      </ThemeProvider>
     </UserProvider>
   )
 }
 
 function HeaderActions(){
   const { user, logout } = useUser()
+  const { theme, toggleTheme } = useTheme()
   if(user){
     // show simple profile area; exchange language place with guest button: if guest, show guest compact button here
     const isGuest = (user.name && user.name.toLowerCase() === 'guest') || (user.email && user.email.toLowerCase().includes('guest'))
@@ -126,6 +130,7 @@ function HeaderActions(){
   return (
     <div className="fixed top-3 right-4 z-50">
       <div className="flex items-center gap-2 bg-white/5 rounded-full p-1 shadow-sm">
+        <button onClick={toggleTheme} aria-label="Toggle theme" className="px-2 py-1 rounded-full hover:bg-white/10">{theme === 'dark' ? '🌙' : '☀️'}</button>
         <select aria-label="Language" className="bg-transparent text-sm text-gray-700 p-2 rounded-l">
           <option value="en">EN</option>
           <option value="es">ES</option>

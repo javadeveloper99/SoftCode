@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { useUser } from '../context/UserContext'
 import { loadConversations, saveConversations, makeConversation } from '../lib/chatStorage'
+import MessageBubble from '../components/MessageBubble'
+import MessageSkeleton from '../components/MessageSkeleton'
 
 export default function ChatPage(){
   const location = useLocation()
@@ -116,12 +118,28 @@ export default function ChatPage(){
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { user, logout } = useUser()
   const [guestMenuOpen, setGuestMenuOpen] = useState(false)
+  const [guestNoticeVisible, setGuestNoticeVisible] = useState(false)
+  
 
   useEffect(()=>{
     function onProfileOpen(){
       setMenuOpen(false)
     }
     window.addEventListener('profile-menu-opened', onProfileOpen)
+
+    // show temporary guest notice when navigating here after guest choice
+    try{
+      const needed = (location && location.state && location.state.showGuestNotice) || sessionStorage.getItem('softcode_guest_notice_needed') === '1'
+      const shown = sessionStorage.getItem('softcode_guest_notice_shown') === '1'
+      if(needed && !shown){
+        setGuestNoticeVisible(true)
+        const t = setTimeout(()=>{
+          setGuestNoticeVisible(false)
+          try{ sessionStorage.setItem('softcode_guest_notice_shown','1'); sessionStorage.removeItem('softcode_guest_notice_needed') }catch(e){}
+        }, 3000)
+        return ()=>clearTimeout(t)
+      }
+    }catch(e){}
     return ()=> window.removeEventListener('profile-menu-opened', onProfileOpen)
   }, [])
 
@@ -158,24 +176,22 @@ export default function ChatPage(){
               <option value="hi">HI</option>
             </select>
 
-            <div className="relative">
-              <button title="More" onClick={()=>setMenuOpen(v=>!v)} className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/20 hover:shadow-md text-sm font-medium transition-all duration-150">⋮</button>
-              {menuOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border">
-                  <ul>
-                    <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50">Pin</button></li>
-                    <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50">Delete</button></li>
-                    <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50">Archive</button></li>
-                    <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50">Report</button></li>
-                  </ul>
-                </div>
-              )}
-            </div>
+            
 
             {/* Profile menu is rendered globally in App.jsx (fixed top-right). */}
           </div>
         </div>
       </header>
+
+      {/* Guest informational popup (auto-dismiss, non-blocking) */}
+      {guestNoticeVisible && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-60">
+          <div role="status" aria-live="polite" className="bg-black/60 text-white text-sm px-4 py-2 rounded-md backdrop-blur-sm shadow-md opacity-95 flex items-center gap-3">
+            <span>For a better experience and to save your chat history, please log in or sign up.</span>
+            <Link to="/signup" className="underline text-white/90 ml-2">Sign up</Link>
+          </div>
+        </div>
+      )}
 
       {/* Content area */}
       <div className="pt-16 w-full h-[calc(100vh-4rem)] flex">
@@ -220,7 +236,7 @@ export default function ChatPage(){
           {conversations.find(c=>c.id === currentConvId)?.messages?.length > 0 && (
             <div className="absolute right-6 top-20 z-40">
               <div className="relative">
-                <button title="Chat options" onClick={()=>setMenuOpen(v=>!v)} className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/20">⋯</button>
+                <button title="Chat options" onClick={()=>setMenuOpen(v=>!v)} className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/20">⚙</button>
                 {menuOpen && (
                   <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border">
                     <ul>
@@ -257,7 +273,7 @@ export default function ChatPage(){
                 <div className="flex-1">
                   <input value={input} onChange={e=>setInput(e.target.value)} className="chat-input w-full rounded-lg px-4 py-3" placeholder="Message..." />
                 </div>
-                <button type="submit" disabled={!String(input || '').trim()} className="send-btn">Send</button>
+                <button type="submit" disabled={!String(input || '').trim()} className="send-btn px-4 py-3 text-base">Send</button>
               </form>
             </div>
           </div>
