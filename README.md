@@ -46,7 +46,8 @@ npm run dev
 Open the development server (usually http://localhost:3000) to view the app.
 
 # Front-End  Improvements
-10-20
+# 10-20
+
 Disable send button when input empty
 
 Message bubble distinction (user vs AI)
