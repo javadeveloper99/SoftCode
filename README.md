@@ -45,3 +45,24 @@ npm run dev
 
 Open the development server (usually http://localhost:3000) to view the app.
 
+# Front-End  Improvements
+
+Disable send button when input empty
+
+Message bubble distinction (user vs AI)
+
+Long response wrapping correctly
+
+Copy message button (one click)
+
+Code block formatting (monospace + copy)
+
+Markdown rendering (lists, bold, links)
+
+Message skeleton loaders
+
+Chat clear/reset button
+
+Persistent chat during refresh (session)
+
+Keyboard-only usable chat (basic)

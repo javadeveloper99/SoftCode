@@ -13,9 +13,29 @@ export default function ChatPage(){
   const [input, setInput] = useState(initial)
   const [conversations, setConversations] = useState([])
   const [currentConvId, setCurrentConvId] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [showRestoredNotice, setShowRestoredNotice] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const bottomRef = useRef(null)
+  const inputRef = useRef(null)
 
   useEffect(()=>{
+    // Listen for chat restoration event
+    const handleRestored = () => {
+      setShowRestoredNotice(true)
+      setTimeout(() => setShowRestoredNotice(false), 4000)
+    }
+    window.addEventListener('chat-restored', handleRestored)
+
+    // Check if we should show restoration notice (check sessionStorage directly)
+    try {
+      const sessionData = sessionStorage.getItem('softcode_conversations_session_v1')
+      const restoredShown = sessionStorage.getItem('softcode_restored_notice_shown')
+      if(sessionData && !restoredShown && JSON.parse(sessionData).length > 0){
+        // Will be triggered by loadConversations, but set up listener first
+      }
+    } catch(e) {}
+
     // load conversations from storage
     const convs = loadConversations()
     if(convs && convs.length){
@@ -29,7 +49,10 @@ export default function ChatPage(){
         setCurrentConvId(nc.id)
         saveConversations(newConvs)
         const t = setTimeout(()=>{ handleSend(initial) }, 250)
-        return ()=>clearTimeout(t)
+        return ()=>{
+          clearTimeout(t)
+          window.removeEventListener('chat-restored', handleRestored)
+        }
       }else{
         setCurrentConvId(convs[0].id)
       }
@@ -42,7 +65,10 @@ export default function ChatPage(){
         setCurrentConvId(nc.id)
         saveConversations([nc])
         const t = setTimeout(()=>{ handleSend(initial) }, 250)
-        return ()=>clearTimeout(t)
+        return ()=>{
+          clearTimeout(t)
+          window.removeEventListener('chat-restored', handleRestored)
+        }
       }else{
         const nc = makeConversation('New chat')
         setConversations([nc])
@@ -50,6 +76,7 @@ export default function ChatPage(){
         saveConversations([nc])
       }
     }
+    return () => window.removeEventListener('chat-restored', handleRestored)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -58,6 +85,18 @@ export default function ChatPage(){
     if(!msg) return
     // append to current conversation
     setInput('')
+    setIsLoading(true)
+    // Reset textarea height and focus input after sending
+    if(inputRef.current){
+      inputRef.current.style.height = 'auto'
+    }
+    setTimeout(() => {
+      inputRef.current?.focus()
+      if(inputRef.current){
+        inputRef.current.style.height = '48px'
+      }
+    }, 100)
+    
     setConversations(prev=>{
       const next = prev.map(c=>{
         if(c.id !== currentConvId) return c
@@ -75,11 +114,41 @@ export default function ChatPage(){
           return { ...c, messages: [...c.messages, { sender:'ai', text: `Thanks — I received: "${msg}". I can review it or suggest improvements.`, createdAt: Date.now() }] }
         })
         saveConversations(next)
+        setIsLoading(false)
         return next
       })
       bottomRef.current?.scrollIntoView({behavior:'smooth'})
     }, 700)
   }
+
+  function handleClearChat(){
+    if(!showClearConfirm){
+      setShowClearConfirm(true)
+      return
+    }
+    // Clear current conversation
+    setConversations(prev=>{
+      const next = prev.map(c=>{
+        if(c.id !== currentConvId) return c
+        return { ...c, messages: [] }
+      })
+      saveConversations(next)
+      return next
+    })
+    setShowClearConfirm(false)
+    inputRef.current?.focus()
+  }
+
+  function handleNewChat(){
+    const nc = makeConversation('New chat')
+    setConversations(prev => [nc, ...prev])
+    setCurrentConvId(nc.id)
+    saveConversations([nc, ...conversations])
+    inputRef.current?.focus()
+  }
+
+  // Check if input is empty (trimmed)
+  const isInputEmpty = !String(input || '').trim()
 
   function formatTime(ts){
     if(!ts) return ''
@@ -119,6 +188,51 @@ export default function ChatPage(){
   const { user, logout } = useUser()
   const [guestMenuOpen, setGuestMenuOpen] = useState(false)
   const [guestNoticeVisible, setGuestNoticeVisible] = useState(false)
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Close modals with Esc
+      if(e.key === 'Escape'){
+        if(showClearConfirm) setShowClearConfirm(false)
+        if(menuOpen) setMenuOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showClearConfirm, menuOpen])
+
+  // Focus trap for clear confirmation modal
+  useEffect(() => {
+    if(!showClearConfirm) return
+    
+    const modal = document.querySelector('[role="dialog"]')
+    if(!modal) return
+    
+    const focusableElements = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    const firstElement = focusableElements[0]
+    const lastElement = focusableElements[focusableElements.length - 1]
+    
+    const handleTab = (e) => {
+      if(e.key !== 'Tab') return
+      
+      if(e.shiftKey) {
+        if(document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement?.focus()
+        }
+      } else {
+        if(document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement?.focus()
+        }
+      }
+    }
+    
+    firstElement?.focus()
+    modal.addEventListener('keydown', handleTab)
+    return () => modal.removeEventListener('keydown', handleTab)
+  }, [showClearConfirm])
   
 
   useEffect(()=>{
@@ -204,7 +318,13 @@ export default function ChatPage(){
           </button>
 
           <div className="space-y-2">
-            <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-3">📝 New Chat</button>
+            <button 
+              onClick={handleNewChat}
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-3"
+              aria-label="New Chat"
+            >
+              📝 New Chat
+            </button>
             <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-3">🔍 Search Chat</button>
             <button className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 flex items-center gap-3">📁 Projects</button>
 
@@ -232,21 +352,89 @@ export default function ChatPage(){
 
         {/* Chat Window */}
         <section className="flex-1 h-full w-full flex flex-col">
-          {/* Chat toolbar three-dots (top-right of chat area) - only show when current conversation has messages */}
-          {conversations.find(c=>c.id === currentConvId)?.messages?.length > 0 && (
-            <div className="absolute right-6 top-20 z-40">
+          {/* Chat toolbar (top-right of chat area) */}
+          <div className="absolute right-6 top-20 z-40 flex items-center gap-2">
+            {conversations.find(c=>c.id === currentConvId)?.messages?.length > 0 && (
+              <>
+                <button 
+                  title="Start new chat" 
+                  onClick={handleNewChat}
+                  className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/20 text-sm"
+                  aria-label="Start new chat"
+                >
+                  New Chat
+                </button>
+                <button 
+                  title="Clear current chat" 
+                  onClick={handleClearChat}
+                  className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/20 text-sm"
+                  aria-label="Clear current chat"
+                >
+                  Clear
+                </button>
+              </>
+            )}
+            {conversations.find(c=>c.id === currentConvId)?.messages?.length > 0 && (
               <div className="relative">
-                <button title="Chat options" onClick={()=>setMenuOpen(v=>!v)} className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/20">⚙</button>
+                <button 
+                  title="Chat options" 
+                  onClick={()=>setMenuOpen(v=>!v)}
+                  className="px-3 py-2 rounded-full bg-white/5 hover:bg-white/20"
+                  aria-label="Chat options"
+                  aria-expanded={menuOpen}
+                >
+                  ⚙
+                </button>
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border">
+                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border z-50">
                     <ul>
-                      <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50">Pin</button></li>
-                      <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50">Delete</button></li>
-                      <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50">Archive</button></li>
-                      <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50">Report</button></li>
+                      <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50" onClick={() => setMenuOpen(false)}>Pin</button></li>
+                      <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50" onClick={() => setMenuOpen(false)}>Archive</button></li>
+                      <li><button className="w-full text-left px-4 py-2 hover:bg-slate-50" onClick={() => setMenuOpen(false)}>Report</button></li>
                     </ul>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+          
+          {/* Clear confirmation dialog */}
+          {showClearConfirm && (
+            <div 
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center" 
+              onClick={() => setShowClearConfirm(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="clear-dialog-title"
+            >
+              <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+                <h3 id="clear-dialog-title" className="text-lg font-semibold mb-2">Clear this chat?</h3>
+                <p className="text-gray-600 mb-4">This will remove all messages from the current conversation. This action cannot be undone.</p>
+                <div className="flex gap-3 justify-end">
+                  <button 
+                    onClick={() => setShowClearConfirm(false)}
+                    className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
+                    aria-label="Cancel"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleClearChat}
+                    className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+                    aria-label="Confirm clear chat"
+                  >
+                    Clear Chat
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Restoration notice */}
+          {showRestoredNotice && (
+            <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-60">
+              <div role="status" aria-live="polite" className="bg-green-500 text-white text-sm px-4 py-2 rounded-md backdrop-blur-sm shadow-md opacity-95 flex items-center gap-3">
+                <span>✓ Chat restored from last session</span>
               </div>
             </div>
           )}
@@ -257,10 +445,9 @@ export default function ChatPage(){
 
             <div className="space-y-4 max-w-2xl mx-auto">
               {conversations.find(c=>c.id === currentConvId)?.messages.map((m, idx)=> (
-                <div key={idx} className={m.sender === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                  <div className={`p-3 rounded-2xl ${m.sender === 'user' ? 'bubble-user' : 'bubble-ai'} max-w-[60%] text-sm`}>{m.text}</div>
-                </div>
+                <MessageBubble key={idx} message={m} isUser={m.sender === 'user'} />
               ))}
+              {isLoading && <MessageSkeleton />}
             </div>
 
             <div ref={bottomRef} />
@@ -269,11 +456,44 @@ export default function ChatPage(){
           {/* Input pinned bottom */}
           <div className="border-t border-slate-100 p-4 bg-white/0">
             <div className="max-w-2xl mx-auto w-full" style={{padding:'0 24px'}}>
-              <form onSubmit={(e)=>{ e.preventDefault(); handleSend(); }} className="flex items-center gap-3 w-full">
+              <form 
+                onSubmit={(e)=>{ 
+                  e.preventDefault(); 
+                  if(!isInputEmpty) handleSend(); 
+                }} 
+                className="flex items-center gap-3 w-full"
+              >
                 <div className="flex-1">
-                  <input value={input} onChange={e=>setInput(e.target.value)} className="chat-input w-full rounded-lg px-4 py-3" placeholder="Message..." />
+                  <textarea 
+                    ref={inputRef}
+                    value={input} 
+                    onChange={e=>{
+                      setInput(e.target.value)
+                      // Auto-resize textarea
+                      e.target.style.height = 'auto'
+                      e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px'
+                    }}
+                    onKeyDown={(e)=>{
+                      if(e.key === 'Enter' && !e.shiftKey){
+                        e.preventDefault()
+                        if(!isInputEmpty) handleSend()
+                      }
+                    }}
+                    className="chat-input w-full rounded-lg px-4 py-3 resize-none" 
+                    placeholder="Message... (Shift+Enter for new line)"
+                    rows={1}
+                    style={{ minHeight: '48px', maxHeight: '200px', overflowY: 'auto' }}
+                    aria-label="Message input"
+                  />
                 </div>
-                <button type="submit" disabled={!String(input || '').trim()} className="send-btn px-4 py-3 text-base">Send</button>
+                <button 
+                  type="submit" 
+                  disabled={isInputEmpty} 
+                  className="send-btn px-4 py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={isInputEmpty ? "Type a message to send" : "Send message"}
+                >
+                  Send
+                </button>
               </form>
             </div>
           </div>
