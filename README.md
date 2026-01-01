@@ -46,7 +46,7 @@ npm run dev
 Open the development server (usually http://localhost:3000) to view the app.
 
 # Front-End  Improvements
-# 10-20
+
 
 1. Instant message send (no lag perception)
 2. Typing indicator (AI “thinking” feedback)
