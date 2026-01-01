@@ -48,22 +48,25 @@ Open the development server (usually http://localhost:3000) to view the app.
 # Front-End  Improvements
 # 10-20
 
-Disable send button when input empty
+1. Instant message send (no lag perception)
+2. Typing indicator (AI “thinking” feedback)
+3. Streaming responses (word-by-word)
+4. Message retry on failure
+5. Clear error state for failed messages
+6. Input auto-focus on page load
+7. Enter-to-send + Shift+Enter for new line
+8. Message timestamps (subtle)
+9. Scroll-to-bottom on new messages
+10. “Jump to latest” button when scrolled up
+11. Disable send button when input empty
+12. Message bubble distinction (user vs AI)
+13. Long response wrapping correctly
+14. Copy message button (one click)
+15. Code block formatting (monospace + copy)
+16. Markdown rendering (lists, bold, links)
+17. Message skeleton loaders
+18. Chat clear/reset button
+19. Persistent chat during refresh (session)
+20. Keyboard-only usable chat (basic)
 
-Message bubble distinction (user vs AI)
 
-Long response wrapping correctly
-
-Copy message button (one click)
-
-Code block formatting (monospace + copy)
-
-Markdown rendering (lists, bold, links)
-
-Message skeleton loaders
-
-Chat clear/reset button
-
-Persistent chat during refresh (session)
-
-Keyboard-only usable chat (basic)

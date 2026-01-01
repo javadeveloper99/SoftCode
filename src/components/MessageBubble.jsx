@@ -4,11 +4,41 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import remarkGfm from 'remark-gfm'
 
-export default function MessageBubble({ message, isUser }) {
+export default function MessageBubble({ message, isUser, onRetry, isStreaming = false }) {
   const [copied, setCopied] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [codeCopied, setCodeCopied] = useState({})
   const codeBlockCounterRef = useRef(0)
+
+  function formatTimestamp(ts){
+    if(!ts) return ''
+    const date = new Date(ts)
+    const now = new Date()
+    const diff = now - date
+    
+    // Less than 1 minute ago
+    if(diff < 60000) return 'Just now'
+    
+    // Less than 1 hour ago
+    if(diff < 3600000) {
+      const mins = Math.floor(diff / 60000)
+      return `${mins}m ago`
+    }
+    
+    // Today
+    if(date.toDateString() === now.toDateString()){
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    }
+    
+    // This week
+    const daysDiff = Math.floor(diff / 86400000)
+    if(daysDiff < 7){
+      return date.toLocaleDateString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+    }
+    
+    // Older
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  }
 
   const handleCopy = async (text) => {
     try {
@@ -59,10 +89,28 @@ export default function MessageBubble({ message, isUser }) {
         </div>
       )}
       <div className={`relative ${isUser ? 'max-w-[70%]' : 'max-w-[75%]'} flex flex-col`}>
-        <div className={`message-bubble ${isUser ? 'bubble-user' : 'bubble-ai'} ${isUser ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tl-sm'} p-4`}>
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
+        <div className={`message-bubble ${isUser ? 'bubble-user' : 'bubble-ai'} ${isUser ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tl-sm'} p-4 ${message.error ? 'error-message' : ''} ${isStreaming ? 'streaming' : ''}`}>
+          {message.error ? (
+            <div className="error-content">
+              <div className="flex items-center gap-2 text-red-600 mb-2">
+                <span>⚠️</span>
+                <span className="font-medium">Failed to send message</span>
+              </div>
+              <p className="text-gray-700 mb-3">{message.text}</p>
+              {onRetry && (
+                <button
+                  onClick={onRetry}
+                  className="retry-button px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 text-sm font-medium transition-colors"
+                  aria-label="Retry sending message"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          ) : (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
               // Code blocks with syntax highlighting
               code({ node, inline, className, children, ...props }) {
                 const match = /language-(\w+)/.exec(className || '')
@@ -155,6 +203,12 @@ export default function MessageBubble({ message, isUser }) {
           >
             {message.text}
           </ReactMarkdown>
+          )}
+        </div>
+        {/* Timestamp - subtle */}
+        <div className={`text-xs text-gray-400 mt-1 px-1 ${isUser ? 'text-right' : 'text-left'}`}>
+          {formatTimestamp(message.createdAt)}
+          {isStreaming && <span className="ml-2 animate-pulse">●</span>}
         </div>
         {/* Copy button - visible on hover (desktop) or always (mobile) */}
         <button

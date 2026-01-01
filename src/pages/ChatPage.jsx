@@ -4,6 +4,7 @@ import { useUser } from '../context/UserContext'
 import { loadConversations, saveConversations, makeConversation } from '../lib/chatStorage'
 import MessageBubble from '../components/MessageBubble'
 import MessageSkeleton from '../components/MessageSkeleton'
+import TypingIndicator from '../components/TypingIndicator'
 
 export default function ChatPage(){
   const location = useLocation()
@@ -14,10 +15,14 @@ export default function ChatPage(){
   const [conversations, setConversations] = useState([])
   const [currentConvId, setCurrentConvId] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const [streamingMessage, setStreamingMessage] = useState(null)
   const [showRestoredNotice, setShowRestoredNotice] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  const messagesContainerRef = useRef(null)
 
   useEffect(()=>{
     // Listen for chat restoration event
@@ -80,45 +85,173 @@ export default function ChatPage(){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Auto-focus input on page load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [currentConvId])
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    const currentConv = conversations.find(c => c.id === currentConvId)
+    if(currentConv && currentConv.messages.length > 0){
+      setTimeout(() => scrollToBottom(), 100)
+    }
+  }, [conversations, currentConvId])
+
+  // Detect scroll position for "Jump to bottom" button
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if(!container) return
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 200
+      setShowJumpToBottom(!isNearBottom && scrollHeight > clientHeight)
+    }
+
+    // Check initial state after a brief delay
+    const checkTimer = setTimeout(() => handleScroll(), 100)
+    
+    container.addEventListener('scroll', handleScroll)
+    return () => {
+      clearTimeout(checkTimer)
+      container.removeEventListener('scroll', handleScroll)
+    }
+  }, [conversations, currentConvId, streamingMessage])
+
   function handleSend(text){
     const msg = String(text || input || '').trim()
     if(!msg) return
-    // append to current conversation
-    setInput('')
-    setIsLoading(true)
-    // Reset textarea height and focus input after sending
-    if(inputRef.current){
-      inputRef.current.style.height = 'auto'
-    }
-    setTimeout(() => {
-      inputRef.current?.focus()
-      if(inputRef.current){
-        inputRef.current.style.height = '48px'
-      }
-    }, 100)
+    
+    // Instant message send - add user message immediately
+    const userMessage = { sender:'user', text: msg, createdAt: Date.now(), id: Date.now().toString() }
     
     setConversations(prev=>{
       const next = prev.map(c=>{
         if(c.id !== currentConvId) return c
-        return { ...c, messages: [...c.messages, { sender:'user', text: msg, createdAt: Date.now() }] }
+        return { ...c, messages: [...c.messages, userMessage] }
       })
       saveConversations(next)
       return next
     })
+    
+    // Clear input and reset textarea immediately
+    setInput('')
+    if(inputRef.current){
+      inputRef.current.style.height = '48px'
+    }
+    
+    // Focus input immediately for instant feel
+    setTimeout(() => inputRef.current?.focus(), 0)
+    
+    // Scroll to bottom immediately
+    setTimeout(() => scrollToBottom(), 0)
+    
+    // Show typing indicator
+    setIsTyping(true)
+    setIsLoading(true)
+    
+    // Simulate AI response with streaming
+    setTimeout(() => {
+      simulateStreamingResponse(msg)
+    }, 300)
+  }
 
-    setTimeout(()=>{
-      // fake AI reply
+  function simulateStreamingResponse(userMsg){
+    // Simulate occasional failures for testing (5% chance - comment out for production)
+    // const shouldFail = Math.random() < 0.05
+    const shouldFail = false // Disabled by default
+    
+    if(shouldFail){
+      // Simulate failure
+      setIsTyping(false)
+      setIsLoading(false)
       setConversations(prev=>{
         const next = prev.map(c=>{
           if(c.id !== currentConvId) return c
-          return { ...c, messages: [...c.messages, { sender:'ai', text: `Thanks — I received: "${msg}". I can review it or suggest improvements.`, createdAt: Date.now() }] }
+          const lastMessage = c.messages[c.messages.length - 1]
+          if(lastMessage && lastMessage.sender === 'user'){
+            const newMessages = [...c.messages]
+            newMessages[newMessages.length - 1] = { ...lastMessage, error: true }
+            return { ...c, messages: newMessages }
+          }
+          return c
         })
         saveConversations(next)
-        setIsLoading(false)
         return next
       })
-      bottomRef.current?.scrollIntoView({behavior:'smooth'})
-    }, 700)
+      return
+    }
+    
+    const fullResponse = `Thanks — I received: "${userMsg}". I can review it or suggest improvements.`
+    const words = fullResponse.split(' ')
+    let currentText = ''
+    let wordIndex = 0
+    
+    setIsTyping(false)
+    setStreamingMessage({ sender: 'ai', text: '', createdAt: Date.now(), id: Date.now().toString() })
+    
+    const streamInterval = setInterval(() => {
+      if(wordIndex < words.length){
+        currentText += (wordIndex > 0 ? ' ' : '') + words[wordIndex]
+        setStreamingMessage(prev => ({ ...prev, text: currentText }))
+        wordIndex++
+        
+        // Scroll to bottom as we stream
+        setTimeout(() => scrollToBottom(), 0)
+      } else {
+        clearInterval(streamInterval)
+        // Add final message to conversation
+        setConversations(prev=>{
+          const next = prev.map(c=>{
+            if(c.id !== currentConvId) return c
+            return { ...c, messages: [...c.messages, { sender:'ai', text: currentText, createdAt: Date.now(), id: Date.now().toString() }] }
+          })
+          saveConversations(next)
+          return next
+        })
+        setStreamingMessage(null)
+        setIsLoading(false)
+        setTimeout(() => scrollToBottom(), 100)
+      }
+    }, 50) // 50ms per word for smooth streaming
+  }
+
+  function scrollToBottom(smooth = true){
+    if(bottomRef.current){
+      bottomRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
+    }
+  }
+
+  function handleRetryMessage(messageId){
+    // Find the failed message and retry
+    const conv = conversations.find(c => c.id === currentConvId)
+    if(!conv) return
+    
+    const messageIndex = conv.messages.findIndex(m => m.id === messageId)
+    if(messageIndex === -1) return
+    
+    const failedMessage = conv.messages[messageIndex]
+    if(failedMessage.sender !== 'user') return
+    
+    // Remove error state and retry
+    setConversations(prev=>{
+      const next = prev.map(c=>{
+        if(c.id !== currentConvId) return c
+        const newMessages = [...c.messages]
+        // Remove the failed message
+        newMessages.splice(messageIndex, 1)
+        return { ...c, messages: newMessages }
+      })
+      saveConversations(next)
+      return next
+    })
+    
+    // Retry sending
+    handleSend(failedMessage.text)
   }
 
   function handleClearChat(){
@@ -438,19 +571,50 @@ export default function ChatPage(){
               </div>
             </div>
           )}
-          <div className="flex-1 overflow-y-auto" style={{padding:'24px'}}>
+          <div 
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto relative" 
+            style={{padding:'24px'}}
+          >
             {(!conversations || conversations.length === 0) && (
               <div className="text-center text-gray-500">No conversations yet. Start by sending a message.</div>
             )}
 
             <div className="space-y-4 max-w-2xl mx-auto">
               {conversations.find(c=>c.id === currentConvId)?.messages.map((m, idx)=> (
-                <MessageBubble key={idx} message={m} isUser={m.sender === 'user'} />
+                <MessageBubble 
+                  key={m.id || idx} 
+                  message={m} 
+                  isUser={m.sender === 'user'}
+                  onRetry={m.error ? () => handleRetryMessage(m.id) : undefined}
+                />
               ))}
-              {isLoading && <MessageSkeleton />}
+              {streamingMessage && (
+                <MessageBubble 
+                  key="streaming" 
+                  message={streamingMessage} 
+                  isUser={false}
+                  isStreaming={true}
+                />
+              )}
+              {isTyping && !streamingMessage && <TypingIndicator />}
+              {isLoading && !isTyping && !streamingMessage && <MessageSkeleton />}
             </div>
 
             <div ref={bottomRef} />
+            
+            {/* Jump to bottom button */}
+            {showJumpToBottom && (
+              <button
+                onClick={() => scrollToBottom()}
+                className="fixed bottom-24 right-8 z-40 bg-white border border-slate-200 rounded-full px-4 py-2 shadow-lg hover:shadow-xl transition-all flex items-center gap-2 text-sm"
+                aria-label="Jump to latest messages"
+                title="Jump to latest"
+              >
+                <span>↓</span>
+                <span>Latest</span>
+              </button>
+            )}
           </div>
 
           {/* Input pinned bottom */}
